@@ -324,7 +324,7 @@ html, body {
 /* ─── Settings Toggle (Ghost UI) ─────────────────────────── */
 #settings-toggle {
   position: fixed;
-  top: 18px; right: 24px;
+  top: 18px; right: 74px;
   z-index: 11;
   width: 40px; height: 40px;
   border: 1px solid var(--border);
@@ -350,7 +350,7 @@ html, body {
 /* ─── Fullscreen Toggle (Ghost UI) ───────────────────────── */
 #fullscreen-toggle {
   position: fixed;
-  top: 18px; right: 74px;
+  top: 18px; right: 24px;
   z-index: 11;
   width: 40px; height: 40px;
   border: 1px solid var(--border);

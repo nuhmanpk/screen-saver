@@ -48,8 +48,21 @@
   <div id="scene-warp"   class="scene hidden"></div>
   <div id="scene-glitch" class="scene hidden"></div>
   <div id="scene-hex"    class="scene hidden"></div>
-  <div id="scene-ring"   class="scene hidden"></div>
-  <div id="scene-flow"   class="scene hidden"></div>
+  <div id="scene-ring"     class="scene hidden"></div>
+  <div id="scene-flow"     class="scene hidden"></div>
+  <div id="scene-sand"     class="scene hidden"></div>
+  <div id="scene-pulse"    class="scene hidden"></div>
+  <div id="scene-binary"   class="scene hidden"></div>
+  <div id="scene-cube"     class="scene hidden"></div>
+  <div id="scene-particle" class="scene hidden"></div>
+  <div id="scene-tron"     class="scene hidden"></div>
+  <div id="scene-kaleid"   class="scene hidden"></div>
+  <div id="scene-morse"    class="scene hidden"></div>
+  <div id="scene-spiral"   class="scene hidden"></div>
+  <div id="scene-terrain"  class="scene hidden"></div>
+  <div id="scene-bubble"   class="scene hidden"></div>
+  <div id="scene-ripple"   class="scene hidden"></div>
+  <div id="scene-typer"    class="scene hidden"></div>
 
   <!-- Top HUD -->
   <div id="hud">
@@ -117,6 +130,58 @@
     <button class="mode-btn" data-scene="flow" title="Float Word Clock">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="8" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="10" width="9" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="15" width="7" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="4" width="5" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       <span>Float</span>
+    </button>
+    <button class="mode-btn" data-scene="sand" title="Sand Clock">
+      <svg viewBox="0 0 24 24"><path d="M6 2h12M6 22h12M8 2v3l4 5-4 5v3M16 2v3l-4 5 4 5v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <span>Sand</span>
+    </button>
+    <button class="mode-btn" data-scene="pulse" title="Pulse Clock">
+      <svg viewBox="0 0 24 24"><polyline points="2,12 5,12 7,6 9,18 11,10 13,14 15,12 22,12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      <span>Pulse</span>
+    </button>
+    <button class="mode-btn" data-scene="binary" title="Binary Clock">
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="2" fill="currentColor" opacity=".9"/><circle cx="12" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="19" cy="6" r="2" fill="currentColor" opacity=".9"/><circle cx="5" cy="13" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="2" fill="currentColor" opacity=".9"/><circle cx="19" cy="13" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="20" r="2" fill="currentColor" opacity=".9"/><circle cx="12" cy="20" r="2" fill="currentColor" opacity=".9"/><circle cx="19" cy="20" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Binary</span>
+    </button>
+    <button class="mode-btn" data-scene="cube" title="Cube Clock">
+      <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="12" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="12" x2="20" y2="7.5" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="12" x2="4" y2="7.5" stroke="currentColor" stroke-width="1.2"/></svg>
+      <span>Cube</span>
+    </button>
+    <button class="mode-btn" data-scene="particle" title="Particle Clock">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="19" cy="9" r="1" fill="currentColor"/><circle cx="19" cy="15" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/><circle cx="5" cy="15" r="1.5" fill="currentColor"/><circle cx="5" cy="9" r="1" fill="currentColor"/><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Particle</span>
+    </button>
+    <button class="mode-btn" data-scene="tron" title="Tron Grid Clock">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="4" x2="2" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="4" x2="22" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="20" x2="20" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="4" x2="5" y2="14" stroke="currentColor" stroke-width="1"/><line x1="12" y1="4" x2="19" y2="14" stroke="currentColor" stroke-width="1"/><line x1="3" y1="14" x2="21" y2="14" stroke="currentColor" stroke-width="1"/></svg>
+      <span>Tron</span>
+    </button>
+    <button class="mode-btn" data-scene="kaleid" title="Kaleidoscope Clock">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="1"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4" stroke="currentColor" stroke-width="1"/><line x1="18.4" y1="5.6" x2="5.6" y2="18.4" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Kaleid</span>
+    </button>
+    <button class="mode-btn" data-scene="morse" title="Morse Clock">
+      <svg viewBox="0 0 24 24"><circle cx="4" cy="8" r="2" fill="currentColor"/><rect x="8" y="6" width="8" height="4" rx="2" fill="currentColor"/><circle cx="4" cy="16" r="2" fill="currentColor"/><circle cx="10" cy="16" r="2" fill="currentColor"/><rect x="14" y="14" width="6" height="4" rx="2" fill="currentColor"/></svg>
+      <span>Morse</span>
+    </button>
+    <button class="mode-btn" data-scene="spiral" title="Spiral Clock">
+      <svg viewBox="0 0 24 24"><path d="M12 12 Q14 8 12 6 Q8 4 6 8 Q4 14 8 18 Q14 22 19 17 Q23 12 20 7 Q16 2 10 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Spiral</span>
+    </button>
+    <button class="mode-btn" data-scene="terrain" title="Terrain Clock">
+      <svg viewBox="0 0 24 24"><polyline points="2,18 6,10 10,14 14,6 18,12 22,8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="2" y1="18" x2="22" y2="18" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Terrain</span>
+    </button>
+    <button class="mode-btn" data-scene="bubble" title="Bubble Clock">
+      <svg viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="19" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="5" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+      <span>Bubble</span>
+    </button>
+    <button class="mode-btn" data-scene="ripple" title="Ripple Clock">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="12" r="12" fill="none" stroke="currentColor" stroke-width=".7"/></svg>
+      <span>Ripple</span>
+    </button>
+    <button class="mode-btn" data-scene="typer" title="Typewriter Clock">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="6" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.3"/><line x1="6" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.3"/><rect x="15" y="13" width="1.5" height="2" fill="currentColor"/></svg>
+      <span>Typer</span>
     </button>
   </nav>
 
@@ -233,6 +298,6 @@
     <span id="clock-overlay-time"></span>
   </div>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
