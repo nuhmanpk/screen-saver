@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NoSleep Clocks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="zzz.png" />
+</head>
+<body>
+
+  <!-- Background canvas (always present) -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Scene-specific containers -->
+  <div id="scene-waves" class="scene hidden"></div>
+  
+  <!-- Flip Clock Scene -->
+  <div id="scene-clock" class="scene hidden">
+    <div class="flip-clock">
+      <div class="flip-panel" id="fc-panel-h">
+        <span class="flip-label" id="fc-ampm">AM</span>
+        <div class="flip-inner">
+          <div class="flip-half flip-top" id="fc-h-top">
+            <span class="flip-text">12</span>
+          </div>
+          <div class="flip-half flip-bottom" id="fc-h-bot">
+            <span class="flip-text">12</span>
+          </div>
+          <div class="flip-half flip-top-flip" id="fc-h-fold">
+            <span class="flip-text">12</span>
+          </div>
+          <div class="flip-half flip-bottom-flip" id="fc-h-unfold">
+            <span class="flip-text">12</span>
+          </div>
+        </div>
+      </div>
+      <div class="flip-sep">:</div>
+      <div class="flip-panel" id="fc-panel-m">
+        <div class="flip-inner">
+          <div class="flip-half flip-top" id="fc-m-top">
+            <span class="flip-text">00</span>
+          </div>
+          <div class="flip-half flip-bottom" id="fc-m-bot">
+            <span class="flip-text">00</span>
+          </div>
+          <div class="flip-half flip-top-flip" id="fc-m-fold">
+            <span class="flip-text">00</span>
+          </div>
+          <div class="flip-half flip-bottom-flip" id="fc-m-unfold">
+            <span class="flip-text">00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scene-matrix" class="scene hidden"></div>
+  <div id="scene-aurora" class="scene hidden"></div>
+  <div id="scene-orbs"   class="scene hidden"></div>
+  <div id="scene-dvd"    class="scene hidden"></div>
+  <div id="scene-eye"    class="scene hidden"></div>
+
+  <!-- Top HUD -->
+  <div id="hud">
+    <div id="hud-left">
+      <div id="lock-indicator" class="indicator locked">
+        <span class="dot"></span>
+        <span class="label">AWAKE</span>
+      </div>
+    </div>
+    <div id="hud-right">
+      <span id="live-time"></span>
+    </div>
+  </div>
+
+  <!-- Mode picker -->
+  <nav id="mode-bar">
+    <button class="mode-btn active" data-scene="waves" title="Wave Clock">
+      <svg viewBox="0 0 24 24"><path d="M2 12 Q6 6 10 12 Q14 18 18 12 Q22 6 26 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Wave</span>
+    </button>
+    <button class="mode-btn" data-scene="clock" title="Flip Clock">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Flip</span>
+    </button>
+    <button class="mode-btn" data-scene="matrix" title="Radar Clock">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="12" x2="18" y2="6" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Radar</span>
+    </button>
+    <button class="mode-btn" data-scene="aurora" title="Aurora Clock">
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="9" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10 Q12 2 19 10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Aurora</span>
+    </button>
+    <button class="mode-btn" data-scene="orbs" title="Orbital Clock">
+      <svg viewBox="0 0 24 24"><circle cx="8" cy="14" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Orbital</span>
+    </button>
+    <button class="mode-btn" data-scene="dvd" title="Word Clock">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10l2 4 2-4 2 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Word</span>
+    </button>
+    <button class="mode-btn" data-scene="eye" title="Vortex Clock">
+      <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Vortex</span>
+    </button>
+  </nav>
+
+  <!-- Fullscreen toggle -->
+  <button id="fullscreen-toggle" aria-label="Toggle Fullscreen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  <!-- Settings drawer trigger -->
+  <button id="settings-toggle" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+
+  <!-- Settings drawer -->
+  <aside id="settings-drawer" class="closed">
+    <div class="drawer-header">
+      <h2>Settings</h2>
+      <button id="settings-close">✕</button>
+    </div>
+
+    <div class="setting-group">
+      <label>Speed</label>
+      <div class="slider-row">
+        <span>Slow</span>
+        <input type="range" id="cfg-speed" min="1" max="10" value="5" />
+        <span>Fast</span>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>Intensity</label>
+      <div class="slider-row">
+        <span>Low</span>
+        <input type="range" id="cfg-intensity" min="1" max="10" value="5" />
+        <span>High</span>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>Palette</label>
+      <div class="palette-grid" id="palette-grid">
+        <button class="palette-btn active" data-palette="neon"    style="--a:#7b2ff7;--b:#00f0ff">Neon</button>
+        <button class="palette-btn"        data-palette="ember"   style="--a:#ff4e00;--b:#ec9f05">Ember</button>
+        <button class="palette-btn"        data-palette="forest"  style="--a:#11998e;--b:#38ef7d">Forest</button>
+        <button class="palette-btn"        data-palette="rose"    style="--a:#f953c6;--b:#b91d73">Rose</button>
+        <button class="palette-btn"        data-palette="ice"     style="--a:#4facfe;--b:#00f2fe">Ice</button>
+        <button class="palette-btn"        data-palette="gold"    style="--a:#f7971e;--b:#ffd200">Gold</button>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>Show clock overlay</label>
+      <label class="toggle">
+        <input type="checkbox" id="cfg-clock-overlay" />
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <div class="setting-group">
+      <label>Background dim</label>
+      <div class="slider-row">
+        <span>0%</span>
+        <input type="range" id="cfg-dim" min="0" max="90" value="0" />
+        <span>90%</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>Needle / Hand Length</label>
+      <div class="slider-row">
+        <span>Short</span>
+        <input type="range" id="cfg-needle" min="20" max="120" value="70" />
+        <span>Long</span>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>Background Color</label>
+      <div class="color-row">
+        <input type="color" id="cfg-bg-color" value="#030308" />
+        <span id="cfg-bg-color-val">#030308</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="wake-lock-status">
+      <div id="wl-icon" class="wl-icon">☀️</div>
+      <div>
+        <strong>Wake Lock</strong>
+        <p id="wl-status-text">Acquiring…</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Dim overlay -->
+  <div id="dim-overlay"></div>
+
+  <!-- Clock overlay (optional, on top of everything) -->
+  <div id="clock-overlay" class="hidden">
+    <span id="clock-overlay-time"></span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
