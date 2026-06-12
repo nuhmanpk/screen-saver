@@ -48,6 +48,8 @@
   <div id="scene-warp"   class="scene hidden"></div>
   <div id="scene-glitch" class="scene hidden"></div>
   <div id="scene-hex"    class="scene hidden"></div>
+  <div id="scene-ring"   class="scene hidden"></div>
+  <div id="scene-flow"   class="scene hidden"></div>
 
   <!-- Top HUD -->
   <div id="hud">
@@ -76,11 +78,11 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="12" x2="18" y2="6" stroke="currentColor" stroke-width="2"/></svg>
       <span>Radar</span>
     </button>
-    <button class="mode-btn active" data-scene="aurora" title="Aurora Clock">
+    <button class="mode-btn" data-scene="aurora" title="Aurora Clock">
       <svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="9" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10 Q12 2 19 10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <span>Aurora</span>
     </button>
-    <button class="mode-btn" data-scene="orbs" title="Orbital Clock">
+    <button class="mode-btn active" data-scene="orbs" title="Orbital Clock">
       <svg viewBox="0 0 24 24"><circle cx="8" cy="14" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <span>Orbital</span>
     </button>
@@ -107,6 +109,14 @@
     <button class="mode-btn" data-scene="hex" title="Hex Clock">
       <svg viewBox="0 0 24 24"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       <span>Hex</span>
+    </button>
+    <button class="mode-btn" data-scene="ring" title="Ring Word Clock">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Ring</span>
+    </button>
+    <button class="mode-btn" data-scene="flow" title="Float Word Clock">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="8" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="10" width="9" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="15" width="7" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="4" width="5" height="3" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Float</span>
     </button>
   </nav>
 

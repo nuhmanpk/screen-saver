@@ -8,7 +8,7 @@ const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
 
 const cfg = {
-  scene:        'aurora',
+  scene:        'orbs',
   speed:        5,
   intensity:    5,
   palette:      'neon',
@@ -26,6 +26,8 @@ const cfg = {
     warp:   { bg: '#000008', needle: 70, bgOpacity: 82 },
     glitch: { bg: '#040209', needle: 70, bgOpacity: 100 },
     hex:    { bg: '#030308', needle: 70, bgOpacity: 100 },
+    ring:   { bg: '#030307', needle: 70, bgOpacity: 100 },
+    flow:   { bg: '#030307', needle: 70, bgOpacity: 100 },
   }
 };
 
@@ -158,6 +160,7 @@ function switchScene(name) {
     b.classList.toggle('active', b.dataset.scene === name);
   });
   cfg.scene = name;
+  history.replaceState(null, '', '#' + name);
 
   const sCfg = cfg.settings[name];
   if (sCfg) {
@@ -379,10 +382,10 @@ const sceneClock = (() => {
 //  SCENE: RADAR CLOCK
 // ═══════════════════════════════════════════════════════════════
 const sceneMatrix = (() => {
-  let targets = [], lastTimeStr = '', offscreen = null, oCtx = null;
+  let targets = [], blips = [], lastTimeStr = '', offscreen = null, oCtx = null;
 
   function init() {
-    targets = []; lastTimeStr = '';
+    targets = []; blips = []; lastTimeStr = '';
     if (!offscreen) { offscreen = document.createElement('canvas'); oCtx = offscreen.getContext('2d'); }
     offscreen.width = 540; offscreen.height = 120;
     ctx.clearRect(0, 0, W, H);
@@ -393,8 +396,9 @@ const sceneMatrix = (() => {
     fillBg('matrix');
 
     const cx = W / 2, cy = H / 2;
-    const sf = cfg.settings.matrix.needle / 70;
-    const rMax = Math.min(W, H) * 0.44 * sf;
+    const sf    = cfg.settings.matrix.needle / 70;
+    const rRings  = Math.min(W, H) * 0.44 * sf;          // rings stay proportional
+    const rNeedle = Math.sqrt(W * W + H * H) / 2;         // needle reaches corners
 
     const now = new Date();
     const hrs = now.getHours(), mins = now.getMinutes(), secs = now.getSeconds(), ms = now.getMilliseconds();
@@ -407,45 +411,100 @@ const sceneMatrix = (() => {
       oCtx.clearRect(0, 0, 540, 120);
       oCtx.fillStyle = '#fff';
       oCtx.font = 'bold 74px JetBrains Mono, monospace';
-      oCtx.textAlign = 'center';
-      oCtx.textBaseline = 'middle';
+      oCtx.textAlign = 'center'; oCtx.textBaseline = 'middle';
       oCtx.fillText(timeStr, 270, 60);
       const d = oCtx.getImageData(0, 0, 540, 120);
       targets = [];
-      for (let y = 0; y < 120; y += 3) {
-        for (let x = 0; x < 540; x += 3) {
+      for (let y = 0; y < 120; y += 3)
+        for (let x = 0; x < 540; x += 3)
           if (d.data[(y * 540 + x) * 4 + 3] > 70) targets.push({ x, y });
-        }
-      }
     }
 
-    ctx.strokeStyle = `rgba(${hexToRgb(C1).join(',')},0.05)`;
+    const rgbC1 = hexToRgb(C1).join(',');
+    const rgbC2 = hexToRgb(C2).join(',');
+
+    // ── Concentric range rings ──
     ctx.lineWidth = 1;
-    [rMax*0.25, rMax*0.5, rMax*0.75, rMax].forEach(r => {
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+    [0.25, 0.5, 0.75, 1].forEach((f, i) => {
+      const r = rRings * f;
+      ctx.strokeStyle = `rgba(${rgbC1},${0.06 + i * 0.015})`;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      // Range label at top of each ring
+      ctx.fillStyle = `rgba(${rgbC1},0.18)`;
+      ctx.font = '8px JetBrains Mono, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(`${Math.round(f * 100)}`, cx, cy - r - 3);
     });
+
+    // ── Crosshair ──
+    ctx.strokeStyle = `rgba(${rgbC1},0.06)`;
     ctx.beginPath();
-    ctx.moveTo(cx - rMax, cy); ctx.lineTo(cx + rMax, cy);
-    ctx.moveTo(cx, cy - rMax); ctx.lineTo(cx, cy + rMax);
+    ctx.moveTo(cx - rRings, cy); ctx.lineTo(cx + rRings, cy);
+    ctx.moveTo(cx, cy - rRings); ctx.lineTo(cx, cy + rRings);
     ctx.stroke();
 
-    const sweepAngle = ((secs + ms / 1000) / 60) * Math.PI * 2 - Math.PI / 2;
-    const tailWidth = 0.5;
-    for (let i = 0; i < 30; i++) {
-      const angle = sweepAngle - (i / 30) * tailWidth;
-      ctx.strokeStyle = `rgba(${hexToRgb(C2).join(',')},${0.16*(1-i/30)})`;
-      ctx.lineWidth = i === 0 ? 2 : 1;
+    // ── Radial spokes every 30° ──
+    for (let deg = 0; deg < 360; deg += 30) {
+      const rad = (deg - 90) * Math.PI / 180;
+      ctx.strokeStyle = `rgba(${rgbC1},0.04)`;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(angle) * rMax, cy + Math.sin(angle) * rMax);
+      ctx.lineTo(cx + Math.cos(rad) * rRings, cy + Math.sin(rad) * rRings);
       ctx.stroke();
     }
 
-    const scale = Math.min(W * 0.82 / 540, H * 0.38 / 120, 2.2);
+    // ── Degree ticks + labels on outer ring ──
+    ctx.lineWidth = 1;
+    for (let deg = 0; deg < 360; deg += 10) {
+      const rad     = (deg - 90) * Math.PI / 180;
+      const isMajor = deg % 30 === 0;
+      const inner   = rRings - (isMajor ? 10 : 5);
+      ctx.strokeStyle = `rgba(${rgbC1},${isMajor ? 0.22 : 0.09})`;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(rad) * inner,   cy + Math.sin(rad) * inner);
+      ctx.lineTo(cx + Math.cos(rad) * rRings,  cy + Math.sin(rad) * rRings);
+      ctx.stroke();
+      if (isMajor) {
+        const lr = rRings + 14;
+        ctx.fillStyle = `rgba(${rgbC1},0.58)`;
+        ctx.font = '8px JetBrains Mono, monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`${deg}`, cx + Math.cos(rad) * lr, cy + Math.sin(rad) * lr);
+      }
+    }
+
+    // ── Sweep needle + glow tail ──
+    const sweepAngle = ((secs + ms / 1000) / 60) * Math.PI * 2 - Math.PI / 2;
+    const tailWidth  = 0.5;
+    for (let i = 0; i < 30; i++) {
+      const angle = sweepAngle - (i / 30) * tailWidth;
+      ctx.strokeStyle = `rgba(${rgbC2},${0.18 * (1 - i / 30)})`;
+      ctx.lineWidth = i === 0 ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * rNeedle, cy + Math.sin(angle) * rNeedle);
+      ctx.stroke();
+    }
+
+    // ── Blips: spawn near sweep head, fade out ──
+    if (Math.random() < 0.3) {
+      const r = rand(rRings * 0.08, rRings * 0.96);
+      const a = sweepAngle + rand(-0.08, 0.04);
+      blips.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, age: 0, life: 40 + Math.floor(rand(0, 35)) });
+    }
+    blips = blips.filter(b => b.age < b.life);
+    blips.forEach(b => {
+      b.age++;
+      const alpha = (1 - b.age / b.life) * 0.6;
+      const sz    = 1 + (1 - b.age / b.life) * 1.8;
+      ctx.fillStyle = `rgba(${rgbC2},${alpha})`;
+      ctx.fillRect(b.x - sz / 2, b.y - sz / 2, sz, sz);
+    });
+
+    // ── Clock dot targets ──
+    const scale  = Math.min(W * 0.82 / 540, H * 0.38 / 120, 2.2);
     const startX = cx - (540 * scale) / 2;
     const startY = cy - (120 * scale) / 2;
-    const rgbC1 = hexToRgb(C1).join(',');
-    const rgbC2 = hexToRgb(C2).join(',');
 
     targets.forEach(pt => {
       const sx = startX + pt.x * scale;
@@ -457,19 +516,47 @@ const sceneMatrix = (() => {
       while (diff >  Math.PI) diff -= Math.PI * 2;
       if (diff >= 0 && diff < tailWidth) {
         const f = 1 - diff / tailWidth;
-        ctx.fillStyle = f > 0.85 ? '#fff' : `rgba(${rgbC2},${0.15+f*0.85})`;
-        ctx.fillRect(sx-1, sy-1, 2.5, 2.5);
+        ctx.fillStyle = f > 0.85 ? '#fff' : `rgba(${rgbC2},${0.35 + f * 0.65})`;
+        ctx.fillRect(sx - 1, sy - 1, 2.5, 2.5);
       } else {
-        ctx.fillStyle = `rgba(${rgbC1},0.08)`;
-        ctx.fillRect(sx-1, sy-1, 1.5, 1.5);
+        ctx.fillStyle = `rgba(${rgbC1},0.85)`;
+        ctx.fillRect(sx - 1, sy - 1, 1.5, 1.5);
       }
     });
 
-    ctx.fillStyle = `rgba(${rgbC2},0.3)`;
-    ctx.font = '10px JetBrains Mono, monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('SYS_RADAR_ACTIVE', cx - rMax + 10, cy - rMax + 20);
-    ctx.fillText(`BEARING: ${(sweepAngle*180/Math.PI+90).toFixed(1)}°`, cx - rMax + 10, cy - rMax + 34);
+    // ── Target-lock brackets around clock ──
+    const cW  = 540 * scale, cH = 120 * scale;
+    const mg  = 20, bS = 18;
+    const bL  = startX - mg, bR = startX + cW + mg;
+    const bT  = startY - mg, bB = startY + cH + mg;
+    ctx.strokeStyle = `rgba(${rgbC2},0.38)`;
+    ctx.lineWidth = 1;
+    [[bL,bT,1,1],[bR,bT,-1,1],[bL,bB,1,-1],[bR,bB,-1,-1]].forEach(([x,y,sx2,sy2]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + sx2*bS, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy2*bS);
+      ctx.stroke();
+    });
+    ctx.fillStyle = `rgba(${rgbC2},0.38)`;
+    ctx.font = '8px JetBrains Mono, monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText('TGT_LOCK', bL, bT - 3);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${targets.length}pts`, bR, bT - 3);
+
+    // ── Corner HUD text ──
+    const bearing = ((sweepAngle * 180 / Math.PI + 90 + 360) % 360).toFixed(1);
+    ctx.fillStyle = `rgba(${rgbC2},0.32)`;
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    const hx = cx - rRings + 10, hy = cy - rRings + 18;
+    ctx.fillText('SYS_RADAR_ACTIVE', hx, hy);
+    ctx.fillText(`BRG ${bearing}°`, hx, hy + 14);
+    ctx.fillText(`RNG ${rRings.toFixed(0)}px`, hx, hy + 28);
+
+    ctx.textAlign = 'right';
+    ctx.fillText(`${pad(hrs)}:${pad(mins)} ${ampm}`, cx + rRings - 10, hy);
+    ctx.fillText(`${secs}s`, cx + rRings - 10, hy + 14);
+    ctx.fillText(`BLIPS ${blips.length}`, cx + rRings - 10, hy + 28);
   }
 
   return { init, tick };
@@ -801,277 +888,181 @@ const sceneDvd = (() => {
 })();
 
 // ═══════════════════════════════════════════════════════════════
-//  SCENE: NEON (Synthwave 7-Segment)
+//  SCENE: NEON (Digital Rain Clock)
 // ═══════════════════════════════════════════════════════════════
 const sceneNeon = (() => {
-  // Segments: [top, top-right, bot-right, bot, bot-left, top-left, mid]
-  const SEGS = {
-    '0':[1,1,1,1,1,1,0], '1':[0,1,1,0,0,0,0], '2':[1,1,0,1,1,0,1],
-    '3':[1,1,1,1,0,0,1], '4':[0,1,1,0,0,1,1], '5':[1,0,1,1,0,1,1],
-    '6':[1,0,1,1,1,1,1], '7':[1,1,1,0,0,0,0], '8':[1,1,1,1,1,1,1],
-    '9':[1,1,1,1,0,1,1],
-  };
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&!?+=<>';
+  let cols = [], fs = 16, lastTs = 0;
 
-  let gridOffset = 0;
-
-  function init() { gridOffset = 0; }
-
-  function drawDigit(char, cx, cy, dw, dh) {
-    const segs = SEGS[char] || [0,0,0,0,0,0,0];
-    const th = dw * 0.11;
-    const pad = th * 0.8;
-    const hw = dw / 2, hh = dh / 2;
-
-    const segPaths = [
-      () => { ctx.rect(cx-hw+pad, cy-hh,       dw-pad*2, th); },           // top
-      () => { ctx.rect(cx+hw-th,  cy-hh+pad,   th, hh-pad*1.5); },         // top-right
-      () => { ctx.rect(cx+hw-th,  cy+th*0.5,   th, hh-pad*1.5); },         // bot-right
-      () => { ctx.rect(cx-hw+pad, cy+hh-th,    dw-pad*2, th); },           // bot
-      () => { ctx.rect(cx-hw,     cy+th*0.5,   th, hh-pad*1.5); },         // bot-left
-      () => { ctx.rect(cx-hw,     cy-hh+pad,   th, hh-pad*1.5); },         // top-left
-      () => { ctx.rect(cx-hw+pad, cy-th*0.55,  dw-pad*2, th); },           // mid
-    ];
-
-    segs.forEach((on, i) => {
-      ctx.beginPath();
-      segPaths[i]();
-      if (on) {
-        ctx.fillStyle = C2;
-        ctx.shadowColor = C2;
-        ctx.shadowBlur = 14;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        // outer glow pass
-        ctx.fillStyle = `rgba(${hexToRgb(C2).join(',')},0.25)`;
-        ctx.shadowColor = C2;
-        ctx.shadowBlur = 28;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      } else {
-        ctx.fillStyle = `rgba(${hexToRgb(C1).join(',')},0.07)`;
-        ctx.fill();
-      }
+  function init() {
+    fs = Math.max(12, Math.floor(W / 60));
+    const colW = fs * 0.7;
+    const numCols = Math.floor(W / colW);
+    cols = Array.from({length: numCols}, (_, i) => {
+      const trailLen = Math.floor(rand(8, 26));
+      return {
+        x: i * colW + colW * 0.3,
+        y: rand(-H * 1.5, H),
+        speed: rand(60, 200),
+        trailLen,
+        chars: Array.from({length: trailLen}, () => CHARS[Math.floor(Math.random()*CHARS.length)]),
+      };
     });
-  }
-
-  function drawColon(x, cy, dh, blink) {
-    const dotR = dh * 0.065;
-    const color = blink ? C2 : `rgba(${hexToRgb(C2).join(',')},0.25)`;
-    ctx.fillStyle = color;
-    ctx.shadowColor = blink ? C2 : 'transparent';
-    ctx.shadowBlur = blink ? 12 : 0;
-    [-0.22, 0.22].forEach(offset => {
-      ctx.beginPath();
-      ctx.arc(x, cy + dh * offset, dotR, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.shadowBlur = 0;
   }
 
   function tick(ts) {
     rafId = requestAnimationFrame(tick);
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
     fillBg('neon');
-    gridOffset = (gridOffset + cfg.speed * 0.4) % 60;
 
-    const [c1r, c1g, c1b] = hexToRgb(C1);
-    const [c2r, c2g, c2b] = hexToRgb(C2);
-    const horizon = H * 0.6;
+    const [c1r,c1g,c1b] = hexToRgb(C1);
+    const [c2r,c2g,c2b] = hexToRgb(C2);
+    const spd = cfg.speed / 5;
 
-    // Grid floor
-    const numV = 24;
-    for (let i = 0; i <= numV; i++) {
-      const frac = i / numV;
-      const xBot = frac * W;
-      const xTop = W/2 + (frac - 0.5) * W * 0.06;
-      ctx.beginPath();
-      ctx.moveTo(xTop, horizon);
-      ctx.lineTo(xBot, H);
-      const a = 0.05 + Math.abs(frac - 0.5) * 0.12;
-      ctx.strokeStyle = `rgba(${c1r},${c1g},${c1b},${a})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
+    ctx.font = `${fs}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
 
-    const numH = 14;
-    for (let i = 1; i <= numH; i++) {
-      const frac = i / numH;
-      const pf = Math.pow(frac, 2.2);
-      // animate offset
-      const animFrac = ((pf * numH + gridOffset / 60) % numH) / numH;
-      const pf2 = Math.pow(animFrac, 2.2);
-      const y = horizon + pf2 * (H - horizon);
-      const a = 0.03 + pf2 * 0.14;
-      ctx.beginPath();
-      ctx.moveTo(0, y); ctx.lineTo(W, y);
-      ctx.strokeStyle = `rgba(${c1r},${c1g},${c1b},${a})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // Horizon glow
-    const hg = ctx.createLinearGradient(0, horizon-40, 0, horizon+60);
-    hg.addColorStop(0, 'rgba(0,0,0,0)');
-    hg.addColorStop(0.45, `rgba(${c1r},${c1g},${c1b},0.18)`);
-    hg.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = hg;
-    ctx.fillRect(0, horizon-40, W, 100);
-
-    // Sun
-    const sg = ctx.createRadialGradient(W/2, horizon, 0, W/2, horizon, W*0.25);
-    sg.addColorStop(0, `rgba(${c2r},${c2g},${c2b},0.5)`);
-    sg.addColorStop(0.35, `rgba(${c1r},${c1g},${c1b},0.22)`);
-    sg.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = sg;
-    ctx.fillRect(0, 0, W, horizon);
-
-    // Horizontal lines on sun (retro stripes)
-    const sunR = W * 0.14;
-    for (let i = 0; i < 8; i++) {
-      const sy = horizon - sunR * 0.05 + (i / 8) * sunR * 0.95;
-      const hf = Math.sqrt(Math.max(0, 1 - Math.pow((sy - horizon) / sunR, 2)));
-      const lineW = sunR * hf * 2;
-      ctx.fillStyle = `rgba(${c1r},${c1g},${c1b},0.25)`;
-      ctx.fillRect(W/2 - lineW/2, sy, lineW, sunR * 0.07);
-    }
-
-    // 7-segment clock
-    const now = new Date();
-    const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-    const dh = Math.min(W * 0.14, H * 0.28, 160);
-    const dw = dh * 0.56;
-    const colonW = dw * 0.28;
-    const gap = dw * 0.14;
-    const totalW = 6*(dw+gap) + 2*(colonW+gap);
-    let x = W/2 - totalW/2 + dw/2;
-    const cy2 = H * 0.30;
-
-    // Dark panel behind digits
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.beginPath();
-    ctx.roundRect(W/2 - totalW/2 - 20, cy2 - dh/2 - 16, totalW + 40, dh + 32, 12);
-    ctx.fill();
-
-    const blink = Math.floor(Date.now() / 500) % 2 === 0;
-    const chars = [pad(h)[0], pad(h)[1], ':', pad(m)[0], pad(m)[1], ':', pad(s)[0], pad(s)[1]];
-    chars.forEach(ch => {
-      if (ch === ':') {
-        drawColon(x, cy2, dh, blink);
-        x += colonW + gap;
-      } else {
-        drawDigit(ch, x, cy2, dw, dh);
-        x += dw + gap;
+    cols.forEach(col => {
+      col.y += col.speed * spd * dt;
+      if (col.y - col.trailLen * fs > H) {
+        col.y = -col.trailLen * fs * rand(0.3, 1.2);
+        col.speed = rand(60, 200);
+        col.trailLen = Math.floor(rand(8, 26));
+        col.chars = Array.from({length: col.trailLen}, () => CHARS[Math.floor(Math.random()*CHARS.length)]);
       }
+      if (Math.random() < 0.05) {
+        col.chars[Math.floor(Math.random()*col.chars.length)] = CHARS[Math.floor(Math.random()*CHARS.length)];
+      }
+
+      col.chars.forEach((ch, i) => {
+        const cy = col.y - (col.trailLen - 1 - i) * fs;
+        if (cy < -fs || cy > H) return;
+        const frac = i / (col.trailLen - 1);
+        if (frac > 0.88) {
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = `rgb(${c2r},${c2g},${c2b})`;
+          ctx.shadowBlur = 10;
+        } else {
+          const alpha = frac * 0.6 + 0.04;
+          const r = Math.round(c1r + (c2r - c1r) * frac);
+          const g = Math.round(c1g + (c2g - c1g) * frac);
+          const b = Math.round(c1b + (c2b - c1b) * frac);
+          ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillText(ch, col.x, cy);
+        ctx.shadowBlur = 0;
+      });
     });
 
-    // Scanlines
-    ctx.fillStyle = 'rgba(0,0,0,0.05)';
-    for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+    // Big centered time with bloom
+    const now = new Date();
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const bigFs = Math.min(W * 0.19, H * 0.27, 170);
+    const cy = H * 0.46;
+
+    // Dark panel so time is readable over rain
+    const panW = bigFs * 5.5, panH = bigFs * 1.25;
+    ctx.fillStyle = 'rgba(2,0,14,0.7)';
+    ctx.beginPath();
+    ctx.roundRect(W/2 - panW/2, cy - panH/2, panW, panH, 10);
+    ctx.fill();
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `300 ${bigFs}px 'JetBrains Mono', monospace`;
+
+    // Outer purple bloom
+    ctx.shadowColor = `rgb(${c1r},${c1g},${c1b})`; ctx.shadowBlur = 80;
+    ctx.fillStyle = `rgba(${c1r},${c1g},${c1b},0.35)`;
+    ctx.fillText(timeStr, W/2, cy);
+
+    // Mid cyan glow
+    ctx.shadowColor = `rgb(${c2r},${c2g},${c2b})`; ctx.shadowBlur = 35;
+    ctx.fillStyle = `rgba(${c2r},${c2g},${c2b},0.65)`;
+    ctx.fillText(timeStr, W/2, cy);
+
+    // White core
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(timeStr, W/2, cy);
   }
 
   return { init, tick };
 })();
 
 // ═══════════════════════════════════════════════════════════════
-//  SCENE: FIRE CLOCK (DOOM-style fire with digit silhouettes)
+//  SCENE: FIRE (Plasma waves + clear time overlay)
 // ═══════════════════════════════════════════════════════════════
 const sceneFire = (() => {
-  const FW = 240, FH = 100;
-  let firePixels = null, digitMask = null, palette = [];
-  let offFire = null, offCtx = null, offDigit = null, offDCtx = null;
-  let lastTimeStr = '';
-  const PS = 38;
-
-  function buildPalette() {
-    palette = [];
-    const [r1,g1,b1] = hexToRgb(C1);
-    const [r2,g2,b2] = hexToRgb(C2);
-    for (let i = 0; i < PS; i++) {
-      const t = i / (PS - 1);
-      let r, g, b;
-      if (t < 0.28) {
-        const f = t / 0.28;
-        r = Math.round(r1*f*0.5); g = Math.round(g1*f*0.4); b = Math.round(b1*f*0.4);
-      } else if (t < 0.62) {
-        const f = (t-0.28)/0.34;
-        r = Math.round(r1*(0.5+f*0.5)); g = Math.round(g1*(0.4+f*0.6)); b = Math.round(b1*(0.4+f*0.6));
-      } else if (t < 0.82) {
-        const f = (t-0.62)/0.2;
-        r = Math.round(r1+(r2-r1)*f); g = Math.round(g1+(g2-g1)*f); b = Math.round(b1+(b2-b1)*f);
-      } else {
-        const f = (t-0.82)/0.18;
-        r = Math.round(r2+(255-r2)*f); g = Math.round(g2+(255-g2)*f); b = Math.round(b2+(255-b2)*f);
-      }
-      palette.push([Math.min(255,r), Math.min(255,g), Math.min(255,b)]);
-    }
-  }
+  let t = 0, lastTs = 0;
+  let pOff = null, pCtx = null;
+  const SCALE = 5;
 
   function init() {
-    if (!offFire) {
-      offFire  = document.createElement('canvas'); offCtx  = offFire.getContext('2d');
-      offDigit = document.createElement('canvas'); offDCtx = offDigit.getContext('2d');
+    t = 0; lastTs = 0;
+    if (!pOff) { pOff = document.createElement('canvas'); pCtx = pOff.getContext('2d'); }
+    pOff.width  = Math.ceil(W / SCALE);
+    pOff.height = Math.ceil(H / SCALE);
+  }
+
+  function tick(ts) {
+    rafId = requestAnimationFrame(tick);
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+    t += dt * 0.6 * (cfg.speed / 5);
+
+    if (pOff.width !== Math.ceil(W/SCALE) || pOff.height !== Math.ceil(H/SCALE)) {
+      pOff.width = Math.ceil(W/SCALE); pOff.height = Math.ceil(H/SCALE);
     }
-    offFire.width = FW; offFire.height = FH;
-    offDigit.width = FW; offDigit.height = FH;
-    firePixels = new Uint8Array(FW * FH).fill(0);
-    digitMask  = new Uint8Array(FW * FH).fill(0);
-    lastTimeStr = '';
-    buildPalette();
-  }
 
-  function updateDigitMask() {
-    const now = new Date();
-    const ts = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    if (ts === lastTimeStr) return;
-    lastTimeStr = ts;
-    offDCtx.clearRect(0, 0, FW, FH);
-    offDCtx.fillStyle = '#fff';
-    offDCtx.font = `bold ${Math.floor(FH * 0.5)}px 'JetBrains Mono', monospace`;
-    offDCtx.textAlign = 'center';
-    offDCtx.textBaseline = 'middle';
-    offDCtx.fillText(ts, FW/2, FH * 0.48);
-    const d = offDCtx.getImageData(0, 0, FW, FH);
-    for (let i = 0; i < FW*FH; i++) digitMask[i] = d.data[i*4+3] > 60 ? 1 : 0;
-  }
+    const pw = pOff.width, ph = pOff.height;
+    const [c1r,c1g,c1b] = hexToRgb(C1);
+    const [c2r,c2g,c2b] = hexToRgb(C2);
 
-  function spread() {
-    // Seed bottom row
-    for (let x = 0; x < FW; x++) firePixels[(FH-1)*FW+x] = PS - 1;
-
-    // Propagate upward
-    for (let y = 0; y < FH-1; y++) {
-      for (let x = 0; x < FW; x++) {
-        const below = firePixels[(y+1)*FW+x];
-        const rx = Math.floor(Math.random() * 3) - 1;
-        const nx = (x + rx + FW) % FW;
-        const decay = Math.random() < 0.35 ? 1 : 0;
-        firePixels[y*FW+nx] = Math.max(0, below - decay);
+    // Build plasma via ImageData at 1/SCALE resolution
+    const img = pCtx.createImageData(pw, ph);
+    for (let y = 0; y < ph; y++) {
+      for (let x = 0; x < pw; x++) {
+        const nx = x / pw, ny = y / ph;
+        const dx = nx - 0.5, dy = ny - 0.5;
+        const v = (
+          Math.sin(nx * 9  + t        ) +
+          Math.sin(ny * 7  - t * 0.8  ) +
+          Math.sin((nx+ny) * 6 + t*0.6) +
+          Math.sin(Math.sqrt(dx*dx+dy*dy) * 14 - t*1.1)
+        ) * 0.25;                             // range -1..1
+        const blend = (v + 1) * 0.5;          // 0..1
+        const idx = (y * pw + x) * 4;
+        img.data[idx]   = Math.round(c1r + (c2r - c1r) * blend);
+        img.data[idx+1] = Math.round(c1g + (c2g - c1g) * blend);
+        img.data[idx+2] = Math.round(c1b + (c2b - c1b) * blend);
+        img.data[idx+3] = 255;
       }
     }
+    pCtx.putImageData(img, 0, 0);
 
-    // Apply digit mask (keep digit pixels cold)
-    for (let i = 0; i < FW*FH; i++) {
-      if (digitMask[i]) firePixels[i] = 0;
-    }
-  }
-
-  function render() {
-    const img = offCtx.createImageData(FW, FH);
-    for (let i = 0; i < FW*FH; i++) {
-      const [r,g,b] = palette[Math.min(firePixels[i], PS-1)];
-      img.data[i*4]=r; img.data[i*4+1]=g; img.data[i*4+2]=b; img.data[i*4+3]=255;
-    }
-    offCtx.putImageData(img, 0, 0);
-  }
-
-  function tick() {
-    rafId = requestAnimationFrame(tick);
-    fillBg('fire');
-    updateDigitMask();
-    spread();
-    render();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(offFire, 0, 0, W, H);
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+    ctx.drawImage(pOff, 0, 0, W, H);
+
+    // Dark vignette so center time pops
+    const vig = ctx.createRadialGradient(W/2, H/2, W*0.1, W/2, H/2, W*0.7);
+    vig.addColorStop(0, 'rgba(0,0,0,0.55)');
+    vig.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+
+    // Clear readable time in center
+    const now = new Date();
+    const tStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const fs = Math.min(W * 0.19, H * 0.26, 165);
+    ctx.font = `300 ${fs}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = `rgb(${c2r},${c2g},${c2b})`; ctx.shadowBlur = 45;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(tStr, W/2, H/2);
+    ctx.shadowBlur = 0;
   }
 
   return { init, tick };
@@ -1265,114 +1256,299 @@ const sceneGlitch = (() => {
 })();
 
 // ═══════════════════════════════════════════════════════════════
-//  SCENE: HEX CLOCK (Hexagonal pixel display)
+//  SCENE: HEX CLOCK (Dot-matrix with hexagonal cells — 5×7 font)
 // ═══════════════════════════════════════════════════════════════
 const sceneHex = (() => {
-  let hexes = [], activeSet = new Set();
-  let offscreen = null, oCtx = null;
-  let lastTimeStr = '';
-  let hexR = 20;
+  const ROWS = 7, CHAR_W = 5, GAP = 1;
+  const FONT = {
+    '0': [0b01110,0b10001,0b10001,0b10001,0b10001,0b10001,0b01110],
+    '1': [0b00100,0b01100,0b00100,0b00100,0b00100,0b00100,0b01110],
+    '2': [0b01110,0b10001,0b00001,0b00010,0b00100,0b01000,0b11111],
+    '3': [0b01110,0b10001,0b00001,0b00110,0b00001,0b10001,0b01110],
+    '4': [0b00010,0b00110,0b01010,0b10010,0b11111,0b00010,0b00010],
+    '5': [0b11111,0b10000,0b11110,0b00001,0b00001,0b10001,0b01110],
+    '6': [0b00110,0b01000,0b10000,0b11110,0b10001,0b10001,0b01110],
+    '7': [0b11111,0b00001,0b00010,0b00100,0b01000,0b01000,0b01000],
+    '8': [0b01110,0b10001,0b10001,0b01110,0b10001,0b10001,0b01110],
+    '9': [0b01110,0b10001,0b10001,0b01111,0b00001,0b00010,0b01100],
+    ':': [0b00000,0b00100,0b00100,0b00000,0b00100,0b00100,0b00000],
+  };
 
-  function buildGrid() {
-    hexes = [];
-    hexR = Math.min(W, H) * 0.024;
-    const hexW = hexR * 2;
-    const hexH = Math.sqrt(3) * hexR;
-    const cols = Math.ceil(W / (hexW * 0.75)) + 2;
-    const rows = Math.ceil(H / hexH) + 2;
-
-    for (let col = -1; col < cols; col++) {
-      for (let row = -1; row < rows; row++) {
-        const x = col * hexW * 0.75;
-        const y = row * hexH + (col % 2 === 0 ? 0 : hexH / 2);
-        hexes.push({ x, y });
-      }
-    }
-  }
-
-  function updateActive() {
-    const now = new Date();
-    const ts = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    if (ts === lastTimeStr) return;
-    lastTimeStr = ts;
-
-    if (!offscreen) { offscreen = document.createElement('canvas'); oCtx = offscreen.getContext('2d'); }
-    if (offscreen.width !== W || offscreen.height !== H) { offscreen.width = W; offscreen.height = H; }
-
-    const fs = Math.min(W * 0.22, H * 0.32, 220);
-    oCtx.clearRect(0, 0, W, H);
-    oCtx.fillStyle = '#fff';
-    oCtx.font = `700 ${fs}px 'JetBrains Mono', monospace`;
-    oCtx.textAlign = 'center';
-    oCtx.textBaseline = 'middle';
-    oCtx.fillText(ts, W/2, H/2);
-
-    const d = oCtx.getImageData(0, 0, W, H);
-    activeSet = new Set();
-    hexes.forEach((hex, i) => {
-      const px = Math.round(hex.x), py = Math.round(hex.y);
-      if (px < 0 || px >= W || py < 0 || py >= H) return;
-      if (d.data[(py * W + px) * 4 + 3] > 80) activeSet.add(i);
-    });
-  }
-
-  function init() {
-    buildGrid();
-    activeSet = new Set();
-    lastTimeStr = '';
-  }
-
-  function hexPath(x, y, r) {
-    ctx.beginPath();
+  function hexDot(cx, cy, r) {
     for (let i = 0; i < 6; i++) {
-      const a = (Math.PI / 3) * i - Math.PI / 6;
-      const hx = x + r * Math.cos(a), hy = y + r * Math.sin(a);
+      const a = (Math.PI/3)*i - Math.PI/6;
+      const hx = cx + r*Math.cos(a), hy = cy + r*Math.sin(a);
       if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
     }
     ctx.closePath();
   }
 
+  function init() {}
+
   function tick() {
     rafId = requestAnimationFrame(tick);
     fillBg('hex');
-    updateActive();
+
+    const now = new Date();
+    const chars = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`.split('');
+
+    const totalCols = chars.length * (CHAR_W + GAP) - GAP;
+    const cell      = Math.min(W * 0.88 / totalCols, H * 0.74 / ROWS);
+    const hexR      = cell * 0.40;
+    const ox        = (W - totalCols * cell) / 2;
+    const oy        = (H - ROWS * cell) / 2;
 
     const [c1r,c1g,c1b] = hexToRgb(C1);
     const [c2r,c2g,c2b] = hexToRgb(C2);
-    const innerR = hexR * 0.86;
 
-    // Draw inactive hexes in one batched path
+    // Pass 1: all inactive dots (single batched path)
     ctx.beginPath();
-    hexes.forEach((h, i) => {
-      if (activeSet.has(i)) return;
-      for (let j = 0; j < 6; j++) {
-        const a = (Math.PI / 3) * j - Math.PI / 6;
-        const hx = h.x + innerR * Math.cos(a), hy = h.y + innerR * Math.sin(a);
-        if (j === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+    let colOff = 0;
+    chars.forEach(ch => {
+      const bm = FONT[ch] || FONT['0'];
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < CHAR_W; col++) {
+          if ((bm[row] >> (CHAR_W-1-col)) & 1) continue;
+          hexDot(ox+(colOff+col)*cell+cell/2, oy+row*cell+cell/2, hexR);
+        }
       }
-      ctx.closePath();
+      colOff += CHAR_W + GAP;
     });
-    ctx.strokeStyle = `rgba(${c1r},${c1g},${c1b},0.07)`;
-    ctx.lineWidth = 0.6;
-    ctx.stroke();
+    ctx.fillStyle = `rgba(${c1r},${c1g},${c1b},0.07)`;
+    ctx.fill();
 
-    // Draw active hexes with glow
-    ctx.shadowColor = C2;
-    ctx.shadowBlur = hexR * 0.9;
-    ctx.fillStyle = `rgba(${c2r},${c2g},${c2b},0.88)`;
-    hexes.forEach((h, i) => {
-      if (!activeSet.has(i)) return;
-      hexPath(h.x, h.y, innerR);
+    // Pass 2: active dots per char (gradient color + glow)
+    colOff = 0;
+    chars.forEach((ch, ci) => {
+      const frac = chars.length > 1 ? ci / (chars.length - 1) : 0;
+      const cr = Math.round(c1r + (c2r-c1r)*frac);
+      const cg = Math.round(c1g + (c2g-c1g)*frac);
+      const cb = Math.round(c1b + (c2b-c1b)*frac);
+
+      ctx.shadowColor = `rgb(${cr},${cg},${cb})`;
+      ctx.shadowBlur  = cell * 0.6;
+      ctx.fillStyle   = `rgb(${cr},${cg},${cb})`;
+      ctx.beginPath();
+
+      const bm = FONT[ch] || FONT['0'];
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < CHAR_W; col++) {
+          if (!((bm[row] >> (CHAR_W-1-col)) & 1)) continue;
+          hexDot(ox+(colOff+col)*cell+cell/2, oy+row*cell+cell/2, hexR);
+        }
+      }
       ctx.fill();
+      colOff += CHAR_W + GAP;
     });
     ctx.shadowBlur = 0;
+  }
 
-    // Bright core of active hexes
-    ctx.fillStyle = `rgba(${c2r},${c2g},${c2b},0.3)`;
-    hexes.forEach((h, i) => {
-      if (!activeSet.has(i)) return;
-      hexPath(h.x, h.y, innerR * 0.55);
-      ctx.fill();
+  return { init, tick };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  SCENE: RING WORD CLOCK (words on three concentric rotating rings)
+// ═══════════════════════════════════════════════════════════════
+const sceneRing = (() => {
+  const H_WORDS  = ['TWELVE','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN'];
+  const MS_WORDS = ['TWENTY','THIRTY','FORTY','FIFTY','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN',
+                    'EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN',
+                    'SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN'];
+  let t = 0;
+
+  function wordSet(n) {
+    const OT = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE',
+                'TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN','SIXTEEN',
+                'SEVENTEEN','EIGHTEEN','NINETEEN'];
+    const TN = ['TWENTY','THIRTY','FORTY','FIFTY'];
+    const s = new Set();
+    if (n <= 0 || n > 59) return s;
+    if (n < 20) s.add(OT[n-1]);
+    else { s.add(TN[Math.floor(n/10)-2]); if (n%10) s.add(OT[n%10-1]); }
+    return s;
+  }
+
+  function init() { t = 0; }
+
+  function drawRing(words, cx, cy, r, active, rgb, rot) {
+    const [cr,cg,cb] = rgb;
+    const n = words.length;
+    const arcPerWord = (2 * Math.PI * r) / n;
+
+    ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.07)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+
+    words.forEach((word, i) => {
+      const ang = -Math.PI/2 + (i/n)*Math.PI*2 + rot;
+      const wx  = cx + Math.cos(ang)*r;
+      const wy  = cy + Math.sin(ang)*r;
+      const isActive = active instanceof Set ? active.has(word) : active === word;
+      const fs = Math.max(Math.min(arcPerWord*0.55/(word.length*0.6), r*0.17, 20), 8);
+
+      ctx.save();
+      ctx.translate(wx, wy);
+      ctx.rotate(ang + Math.PI/2);
+      ctx.font = `700 ${fs}px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (isActive) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = `rgb(${cr},${cg},${cb})`; ctx.shadowBlur = 22;
+        ctx.fillText(word, 0, 0);
+        ctx.shadowBlur = 40;
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},0.35)`;
+        ctx.fillText(word, 0, 0);
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.065)';
+        ctx.fillText(word, 0, 0);
+      }
+      ctx.restore();
+    });
+  }
+
+  function tick() {
+    rafId = requestAnimationFrame(tick);
+    t += 0.0008 * (cfg.speed / 5);
+    fillBg('ring');
+
+    const cx = W/2, cy = H/2;
+    const rMin = Math.min(W, H);
+    const r1 = rMin*0.19, r2 = rMin*0.34, r3 = rMin*0.47;
+
+    const now   = new Date();
+    const c1rgb = hexToRgb(C1);
+    const c2rgb = hexToRgb(C2);
+    const c3rgb = lerpColor(C1, C2, 0.5);
+
+    drawRing(H_WORDS,  cx, cy, r1, H_WORDS[now.getHours()%12], c1rgb, t*0.5);
+    drawRing(MS_WORDS, cx, cy, r2, wordSet(now.getMinutes()),   c2rgb, -t*0.3);
+    drawRing(MS_WORDS, cx, cy, r3, wordSet(now.getSeconds()),   c3rgb,  t*0.18);
+
+    // Center digital time
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `300 ${Math.min(r1*0.42, 22)}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`, cx, cy);
+
+    // Ring labels (H / M / S) to the left of each ring
+    ctx.font = '500 9px Inter, sans-serif';
+    [[r1,'H',c1rgb],[r2,'M',c2rgb],[r3,'S',c3rgb]].forEach(([r,lbl,rgb]) => {
+      const [lr,lg,lb] = rgb;
+      ctx.fillStyle = `rgba(${lr},${lg},${lb},0.28)`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(lbl, cx - r - 10, cy);
+    });
+  }
+
+  return { init, tick };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  SCENE: FLOAT WORD CLOCK (words drift + spring when active)
+// ═══════════════════════════════════════════════════════════════
+const sceneFlow = (() => {
+  const SEC_WORDS = [
+    ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE'],
+    ['TWENTY','THIRTY','FORTY','FIFTY','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN',
+     'EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN',
+     'SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN'],
+    ['TWENTY','THIRTY','FORTY','FIFTY','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN',
+     'EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN',
+     'SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN'],
+  ];
+  const H_LABELS = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE'];
+  let words = [], t = 0;
+
+  function wordSet(n) {
+    const OT = ['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE',
+                'TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN','SIXTEEN',
+                'SEVENTEEN','EIGHTEEN','NINETEEN'];
+    const TN = ['TWENTY','THIRTY','FORTY','FIFTY'];
+    const s = new Set();
+    if (n <= 0 || n > 59) return s;
+    if (n < 20) s.add(OT[n-1]);
+    else { s.add(TN[Math.floor(n/10)-2]); if (n%10) s.add(OT[n%10-1]); }
+    return s;
+  }
+
+  function init() {
+    words = []; t = 0;
+    const sH = H / 3;
+    SEC_WORDS.forEach((wlist, si) => {
+      const COLS = Math.min(wlist.length, 6);
+      const ROWS = Math.ceil(wlist.length / COLS);
+      wlist.forEach((word, i) => {
+        const col = i % COLS, row = Math.floor(i / COLS);
+        const bx = (col + 0.5) * (W / COLS);
+        const by = si * sH + (row + 0.5) * (sH / ROWS);
+        words.push({
+          word, si, bx, by,
+          x: bx + rand(-25,25), y: by + rand(-12,12),
+          phase: Math.random()*Math.PI*2, freq: rand(0.22,0.52),
+          scale: 1,
+        });
+      });
+    });
+  }
+
+  function tick() {
+    rafId = requestAnimationFrame(tick);
+    t += 0.01 * (cfg.speed / 5);
+    fillBg('flow');
+
+    const now    = new Date();
+    const h12    = now.getHours() % 12 || 12;
+    const activeH = new Set([H_LABELS[h12-1]]);
+    const activeM = wordSet(now.getMinutes());
+    const activeS = wordSet(now.getSeconds());
+    const active  = [activeH, activeM, activeS];
+
+    const c1rgb = hexToRgb(C1), c2rgb = hexToRgb(C2), c3rgb = lerpColor(C1,C2,0.5);
+    const secRgb = [c1rgb, c2rgb, c3rgb];
+    const sH = H / 3;
+
+    // Dashed section dividers
+    const [c1r,c1g,c1b] = c1rgb;
+    ctx.strokeStyle = `rgba(${c1r},${c1g},${c1b},0.1)`;
+    ctx.lineWidth = 1; ctx.setLineDash([3,8]);
+    ctx.beginPath();
+    ctx.moveTo(0, H/3);   ctx.lineTo(W, H/3);
+    ctx.moveTo(0, 2*H/3); ctx.lineTo(W, 2*H/3);
+    ctx.stroke(); ctx.setLineDash([]);
+
+    words.forEach(wo => {
+      const isActive = active[wo.si].has(wo.word);
+      const fx = Math.sin(t*wo.freq + wo.phase)*14;
+      const fy = Math.cos(t*wo.freq*0.7 + wo.phase+1)*9;
+      wo.x += (wo.bx+fx - wo.x)*0.04;
+      wo.y += (wo.by+fy - wo.y)*0.04;
+      wo.scale += ((isActive ? 1.55 : 1) - wo.scale)*0.07;
+
+      const ROWS  = Math.ceil(SEC_WORDS[wo.si].length / Math.min(SEC_WORDS[wo.si].length, 6));
+      const baseFs = Math.min(sH/ROWS*0.34, 28);
+      const fs    = baseFs * wo.scale;
+      const [cr,cg,cb] = secRgb[wo.si];
+
+      ctx.font = `700 ${fs}px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (isActive) {
+        ctx.shadowColor = `rgb(${cr},${cg},${cb})`; ctx.shadowBlur = 18;
+        ctx.fillStyle = '#ffffff';
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.065)'; ctx.shadowBlur = 0;
+      }
+      ctx.fillText(wo.word, wo.x, wo.y);
+      ctx.shadowBlur = 0;
+    });
+
+    // Section labels
+    ['HOURS','MINUTES','SECONDS'].forEach((lbl, i) => {
+      const [lr,lg,lb] = secRgb[i];
+      ctx.fillStyle = `rgba(${lr},${lg},${lb},0.22)`;
+      ctx.font = '500 11px Inter, sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(lbl, 10, i*H/3 + 5);
     });
   }
 
@@ -1392,6 +1568,8 @@ const scenes = {
   warp:   sceneWarp,
   glitch: sceneGlitch,
   hex:    sceneHex,
+  ring:   sceneRing,
+  flow:   sceneFlow,
 };
 
 // ── Settings Wiring ───────────────────────────────────────────
@@ -1462,7 +1640,14 @@ window.addEventListener('keydown', e => {
   if (scene) switchScene(scene);
 });
 
+// ── Hash Routing ──────────────────────────────────────────────
+window.addEventListener('hashchange', () => {
+  const name = location.hash.slice(1);
+  if (name && scenes[name] && name !== cfg.scene) switchScene(name);
+});
+
 // ── Boot ──────────────────────────────────────────────────────
 applyPalette('neon');
-switchScene('aurora');
-acquireWakeLock(); // explicit call at boot (also fires at top of file)
+const _initScene = scenes[location.hash.slice(1)] ? location.hash.slice(1) : 'orbs';
+switchScene(_initScene);
+acquireWakeLock();
