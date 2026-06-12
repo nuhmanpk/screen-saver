@@ -12,47 +12,28 @@
 </head>
 <body>
 
-  <!-- Background canvas (always present) -->
   <canvas id="bg-canvas"></canvas>
 
-  <!-- Scene-specific containers -->
   <div id="scene-waves" class="scene hidden"></div>
-  
-  <!-- Flip Clock Scene -->
+
   <div id="scene-clock" class="scene hidden">
     <div class="flip-clock">
       <div class="flip-panel" id="fc-panel-h">
         <span class="flip-label" id="fc-ampm">AM</span>
         <div class="flip-inner">
-          <div class="flip-half flip-top" id="fc-h-top">
-            <span class="flip-text">12</span>
-          </div>
-          <div class="flip-half flip-bottom" id="fc-h-bot">
-            <span class="flip-text">12</span>
-          </div>
-          <div class="flip-half flip-top-flip" id="fc-h-fold">
-            <span class="flip-text">12</span>
-          </div>
-          <div class="flip-half flip-bottom-flip" id="fc-h-unfold">
-            <span class="flip-text">12</span>
-          </div>
+          <div class="flip-half flip-top" id="fc-h-top"><span class="flip-text">12</span></div>
+          <div class="flip-half flip-bottom" id="fc-h-bot"><span class="flip-text">12</span></div>
+          <div class="flip-half flip-top-flip" id="fc-h-fold"><span class="flip-text">12</span></div>
+          <div class="flip-half flip-bottom-flip" id="fc-h-unfold"><span class="flip-text">12</span></div>
         </div>
       </div>
       <div class="flip-sep">:</div>
       <div class="flip-panel" id="fc-panel-m">
         <div class="flip-inner">
-          <div class="flip-half flip-top" id="fc-m-top">
-            <span class="flip-text">00</span>
-          </div>
-          <div class="flip-half flip-bottom" id="fc-m-bot">
-            <span class="flip-text">00</span>
-          </div>
-          <div class="flip-half flip-top-flip" id="fc-m-fold">
-            <span class="flip-text">00</span>
-          </div>
-          <div class="flip-half flip-bottom-flip" id="fc-m-unfold">
-            <span class="flip-text">00</span>
-          </div>
+          <div class="flip-half flip-top" id="fc-m-top"><span class="flip-text">00</span></div>
+          <div class="flip-half flip-bottom" id="fc-m-bot"><span class="flip-text">00</span></div>
+          <div class="flip-half flip-top-flip" id="fc-m-fold"><span class="flip-text">00</span></div>
+          <div class="flip-half flip-bottom-flip" id="fc-m-unfold"><span class="flip-text">00</span></div>
         </div>
       </div>
     </div>
@@ -62,7 +43,11 @@
   <div id="scene-aurora" class="scene hidden"></div>
   <div id="scene-orbs"   class="scene hidden"></div>
   <div id="scene-dvd"    class="scene hidden"></div>
-  <div id="scene-eye"    class="scene hidden"></div>
+  <div id="scene-neon"   class="scene hidden"></div>
+  <div id="scene-fire"   class="scene hidden"></div>
+  <div id="scene-warp"   class="scene hidden"></div>
+  <div id="scene-glitch" class="scene hidden"></div>
+  <div id="scene-hex"    class="scene hidden"></div>
 
   <!-- Top HUD -->
   <div id="hud">
@@ -79,7 +64,7 @@
 
   <!-- Mode picker -->
   <nav id="mode-bar">
-    <button class="mode-btn active" data-scene="waves" title="Wave Clock">
+    <button class="mode-btn" data-scene="waves" title="Wave Clock">
       <svg viewBox="0 0 24 24"><path d="M2 12 Q6 6 10 12 Q14 18 18 12 Q22 6 26 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <span>Wave</span>
     </button>
@@ -91,7 +76,7 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="12" x2="18" y2="6" stroke="currentColor" stroke-width="2"/></svg>
       <span>Radar</span>
     </button>
-    <button class="mode-btn" data-scene="aurora" title="Aurora Clock">
+    <button class="mode-btn active" data-scene="aurora" title="Aurora Clock">
       <svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="9" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10 Q12 2 19 10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <span>Aurora</span>
     </button>
@@ -103,9 +88,25 @@
       <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10l2 4 2-4 2 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       <span>Word</span>
     </button>
-    <button class="mode-btn" data-scene="eye" title="Vortex Clock">
-      <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-      <span>Vortex</span>
+    <button class="mode-btn" data-scene="neon" title="Neon Clock">
+      <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span>Neon</span>
+    </button>
+    <button class="mode-btn" data-scene="fire" title="Fire Clock">
+      <svg viewBox="0 0 24 24"><path d="M12 2c0 0-7 8-7 13a7 7 0 0 0 14 0C19 10 12 2 12 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8c0 0-3 4-3 7a3 3 0 0 0 6 0C15 12 12 8 12 8z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>Fire</span>
+    </button>
+    <button class="mode-btn" data-scene="warp" title="Warp Clock">
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="12" cy="12" rx="6" ry="4" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="12" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+      <span>Warp</span>
+    </button>
+    <button class="mode-btn" data-scene="glitch" title="Glitch Clock">
+      <svg viewBox="0 0 24 24"><line x1="2" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="2"/><line x1="11" y1="6" x2="22" y2="6" stroke="currentColor" stroke-width="2"/><line x1="2" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="2"/><line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/><line x1="2" y1="18" x2="6" y2="18" stroke="currentColor" stroke-width="2"/><line x1="9" y1="18" x2="22" y2="18" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Glitch</span>
+    </button>
+    <button class="mode-btn" data-scene="hex" title="Hex Clock">
+      <svg viewBox="0 0 24 24"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span>Hex</span>
     </button>
   </nav>
 
@@ -151,12 +152,12 @@
     <div class="setting-group">
       <label>Palette</label>
       <div class="palette-grid" id="palette-grid">
-        <button class="palette-btn active" data-palette="neon"    style="--a:#7b2ff7;--b:#00f0ff">Neon</button>
-        <button class="palette-btn"        data-palette="ember"   style="--a:#ff4e00;--b:#ec9f05">Ember</button>
-        <button class="palette-btn"        data-palette="forest"  style="--a:#11998e;--b:#38ef7d">Forest</button>
-        <button class="palette-btn"        data-palette="rose"    style="--a:#f953c6;--b:#b91d73">Rose</button>
-        <button class="palette-btn"        data-palette="ice"     style="--a:#4facfe;--b:#00f2fe">Ice</button>
-        <button class="palette-btn"        data-palette="gold"    style="--a:#f7971e;--b:#ffd200">Gold</button>
+        <button class="palette-btn active" data-palette="neon"   style="--a:#7b2ff7;--b:#00f0ff">Neon</button>
+        <button class="palette-btn"        data-palette="ember"  style="--a:#ff4e00;--b:#ec9f05">Ember</button>
+        <button class="palette-btn"        data-palette="forest" style="--a:#11998e;--b:#38ef7d">Forest</button>
+        <button class="palette-btn"        data-palette="rose"   style="--a:#f953c6;--b:#b91d73">Rose</button>
+        <button class="palette-btn"        data-palette="ice"    style="--a:#4facfe;--b:#00f2fe">Ice</button>
+        <button class="palette-btn"        data-palette="gold"   style="--a:#f7971e;--b:#ffd200">Gold</button>
       </div>
     </div>
 
@@ -176,6 +177,7 @@
         <span>90%</span>
       </div>
     </div>
+
     <div class="setting-group">
       <label>Needle / Hand Length</label>
       <div class="slider-row">
@@ -193,6 +195,15 @@
       </div>
     </div>
 
+    <div class="setting-group">
+      <label>Background Opacity</label>
+      <div class="slider-row">
+        <span>Trail</span>
+        <input type="range" id="cfg-bg-opacity" min="5" max="100" value="100" />
+        <span>Solid</span>
+      </div>
+    </div>
+
     <div class="divider"></div>
 
     <div class="wake-lock-status">
@@ -207,7 +218,7 @@
   <!-- Dim overlay -->
   <div id="dim-overlay"></div>
 
-  <!-- Clock overlay (optional, on top of everything) -->
+  <!-- Clock overlay -->
   <div id="clock-overlay" class="hidden">
     <span id="clock-overlay-time"></span>
   </div>
