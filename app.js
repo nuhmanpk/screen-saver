@@ -16,6 +16,11 @@ window.addEventListener('hashchange', () => {
 });
 
 applyPalette('neon');
-const _initScene = scenes[location.hash.slice(1)] ? location.hash.slice(1) : 'orbs';
+const _hashScene = location.hash.slice(1);
+const _names     = Object.keys(scenes);
+// No scene in the URL → start on a random one
+const _initScene = scenes[_hashScene]
+  ? _hashScene
+  : _names[Math.floor(Math.random() * _names.length)];
 switchScene(_initScene);
 initWakeLock();
