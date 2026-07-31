@@ -9,7 +9,7 @@ import aurora   from '../scenes/aurora.js';
 import orbs     from '../scenes/orbs.js';
 import word     from '../scenes/word.js';
 import rain     from '../scenes/rain.js';
-import plasma   from '../scenes/plasma.js';
+import storm    from '../scenes/storm.js';
 import warp     from '../scenes/warp.js';
 import glitch   from '../scenes/glitch.js';
 import hex      from '../scenes/hex.js';
@@ -18,15 +18,15 @@ import flow     from '../scenes/flow.js';
 import sand     from '../scenes/sand.js';
 import pulse    from '../scenes/pulse.js';
 import binary   from '../scenes/binary.js';
-import cube     from '../scenes/cube.js';
+import pendulum from '../scenes/pendulum.js';
 import particle from '../scenes/particle.js';
-import tron     from '../scenes/tron.js';
-import kaleid   from '../scenes/kaleid.js';
+import bloom    from '../scenes/bloom.js';
+import crystal  from '../scenes/crystal.js';
 import morse    from '../scenes/morse.js';
-import spiral   from '../scenes/spiral.js';
-import terrain  from '../scenes/terrain.js';
+import phyllo   from '../scenes/phyllo.js';
+import ink      from '../scenes/ink.js';
 import bubble   from '../scenes/bubble.js';
-import ripple   from '../scenes/ripple.js';
+import strings  from '../scenes/strings.js';
 import typer    from '../scenes/typer.js';
 
 export const scenes = {
@@ -37,7 +37,7 @@ export const scenes = {
   orbs,
   dvd:      word,
   neon:     rain,
-  fire:     plasma,
+  storm,
   warp,
   glitch,
   hex,
@@ -46,15 +46,15 @@ export const scenes = {
   sand,
   pulse,
   binary,
-  cube,
+  pendulum,
   particle,
-  tron,
-  kaleid,
+  bloom,
+  crystal,
   morse,
-  spiral,
-  terrain,
+  phyllo,
+  ink,
   bubble,
-  ripple,
+  strings,
   typer,
 };
 

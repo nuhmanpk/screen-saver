@@ -90,12 +90,12 @@ window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
   const map = {
     a: 'waves',    b: 'clock',   c: 'matrix',  d: 'aurora',
-    e: 'orbs',     f: 'dvd',     g: 'neon',    h: 'fire',
+    e: 'orbs',     f: 'dvd',     g: 'neon',    h: 'storm',
     i: 'warp',     j: 'glitch',  k: 'hex',     l: 'ring',
     m: 'flow',     n: 'sand',    o: 'pulse',   p: 'binary',
-    q: 'cube',     r: 'particle',s: 'tron',    t: 'kaleid',
-    u: 'morse',    v: 'spiral',  w: 'terrain', x: 'bubble',
-    y: 'ripple',   z: 'typer',
+    q: 'pendulum',     r: 'particle',s: 'bloom',    t: 'crystal',
+    u: 'morse',    v: 'phyllo',  w: 'ink', x: 'bubble',
+    y: 'strings',   z: 'typer',
   };
   const scene = map[e.key.toLowerCase()];
   if (scene) switchScene(scene);
