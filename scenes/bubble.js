@@ -3,68 +3,146 @@ import { cfg, C1, C2 } from '../core/cfg.js';
 import { pad, hexToRgb, lerpColor, rand, fillBg } from '../core/helpers.js';
 import { setRafId } from '../core/raf.js';
 
-const N = 9;
-let blobs = [], t = 0;
+// Soap bubbles: iridescent rims, wobbling skins, one pops on every second.
+let bubbles = [], pops = [], t = 0, lastSec = -1, lastTs = 0;
 
-function init() {
-  t = 0;
-  blobs = Array.from({ length: N }, (_, i) => ({
-    frac: i / (N - 1),
-    cx:   W * (0.18 + Math.random() * 0.64),
-    cy:   H * (0.18 + Math.random() * 0.64),
-    ax:   W  * (0.12 + Math.random() * 0.18),
-    ay:   H  * (0.12 + Math.random() * 0.18),
-    fx:   rand(0.18, 0.55),
-    fy:   rand(0.14, 0.48),
-    px:   Math.random() * Math.PI * 2,
-    py:   Math.random() * Math.PI * 2,
-    r:    Math.min(W, H) * (0.1 + Math.random() * 0.13),
-    pf:   rand(0.25, 0.65),
-    pp:   Math.random() * Math.PI * 2,
-  }));
+function makeBubble() {
+  const r = rand(Math.min(W, H) * 0.05, Math.min(W, H) * 0.16);
+  return {
+    x: rand(r, W - r), y: rand(H * 0.9, H * 1.35),
+    r, rise: rand(8, 26) / (r / 40),
+    wob: rand(0, 6.3), wobF: rand(0.6, 1.6), wobA: rand(0.02, 0.07),
+    drift: rand(-0.35, 0.35), tone: Math.random(), spin: rand(-0.5, 0.5),
+  };
 }
 
-function tick() {
+function init() {
+  t = 0; lastSec = -1; lastTs = 0; pops = [];
+  bubbles = Array.from({ length: 14 }, () => {
+    const b = makeBubble();
+    b.y = rand(-H * 0.1, H);
+    return b;
+  });
+}
+
+function tick(ts) {
   setRafId(requestAnimationFrame(tick));
+  const dt = Math.min((ts - lastTs) / 1000, 0.05) || 0.016;
+  lastTs = ts;
   const spd = cfg.speed / 5;
-  t += 0.007 * spd;
+  t += dt * spd;
   fillBg('bubble');
 
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+
+  // A bubble bursts each second
+  if (s !== lastSec) {
+    lastSec = s;
+    if (bubbles.length) {
+      const i = Math.floor(Math.random() * bubbles.length);
+      const b = bubbles[i];
+      pops.push({ x: b.x, y: b.y, r: b.r, life: 1, tone: b.tone });
+      bubbles[i] = makeBubble();
+    }
+  }
+  while (bubbles.length < 14) bubbles.push(makeBubble());
+
+  const [c1r, c1g, c1b] = hexToRgb(C1);
   const [c2r, c2g, c2b] = hexToRgb(C2);
 
-  ctx.globalCompositeOperation = 'lighter';
+  bubbles.forEach(b => {
+    b.y -= b.rise * dt * 10 * spd;
+    b.x += b.drift * spd;
+    b.wob += dt * b.wobF * 2;
+    if (b.y + b.r < -20) Object.assign(b, makeBubble());
+    if (b.x < -b.r) b.x = W + b.r;
+    if (b.x > W + b.r) b.x = -b.r;
 
-  blobs.forEach(b => {
-    const x = b.cx + Math.sin(t * b.fx + b.px) * b.ax;
-    const y = b.cy + Math.cos(t * b.fy + b.py) * b.ay;
-    const r = b.r * (0.82 + 0.18 * Math.sin(t * b.pf + b.pp));
-    const [cr, cg, cb] = lerpColor(C1, C2, b.frac);
-
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0,   `rgba(${cr},${cg},${cb},0.32)`);
-    g.addColorStop(0.38, `rgba(${cr},${cg},${cb},0.16)`);
-    g.addColorStop(0.75, `rgba(${cr},${cg},${cb},0.04)`);
-    g.addColorStop(1,   'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
+    // Wobbling skin
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const STEP = Math.PI / 22;
+    for (let a = 0; a <= Math.PI * 2 + 0.001; a += STEP) {
+      const rr = b.r * (1 + Math.sin(a * 3 + b.wob) * b.wobA
+                          + Math.sin(a * 5 - b.wob * 1.4) * b.wobA * 0.6);
+      const x = b.x + Math.cos(a) * rr, y = b.y + Math.sin(a) * rr;
+      a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+
+    // Thin film interior
+    const [ir, ig, ib] = lerpColor(C1, C2, b.tone);
+    const fill = ctx.createRadialGradient(
+      b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.1, b.x, b.y, b.r);
+    fill.addColorStop(0,    `rgba(255,255,255,0.1)`);
+    fill.addColorStop(0.55, `rgba(${ir},${ig},${ib},0.06)`);
+    fill.addColorStop(0.88, `rgba(${ir},${ig},${ib},0.16)`);
+    fill.addColorStop(1,    `rgba(255,255,255,0.3)`);
+    ctx.fillStyle = fill;
+    ctx.fill();
+
+    // Iridescent rim: the film shifts colour around the circumference
+    const ang = t * b.spin;
+    const rim = ctx.createLinearGradient(
+      b.x + Math.cos(ang) * b.r, b.y + Math.sin(ang) * b.r,
+      b.x - Math.cos(ang) * b.r, b.y - Math.sin(ang) * b.r);
+    rim.addColorStop(0,   `rgba(${c1r},${c1g},${c1b},0.75)`);
+    rim.addColorStop(0.4, `rgba(255,255,255,0.5)`);
+    rim.addColorStop(0.7, `rgba(${c2r},${c2g},${c2b},0.7)`);
+    rim.addColorStop(1,   `rgba(${c1r},${c1g},${c1b},0.3)`);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth   = 1.6;
+    ctx.shadowColor = `rgb(${ir},${ig},${ib})`;
+    ctx.shadowBlur  = 14;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+
+    // Specular highlights
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(b.x - b.r * 0.38, b.y - b.r * 0.42, b.r * 0.16, b.r * 0.1, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.arc(b.x + b.r * 0.4, b.y + b.r * 0.34, b.r * 0.07, 0, Math.PI * 2);
     ctx.fill();
   });
 
-  ctx.globalCompositeOperation = 'source-over';
+  // Bursts: expanding ring plus film shreds
+  pops = pops.filter(p => p.life > 0);
+  pops.forEach(p => {
+    p.life -= dt * 1.8;
+    const e = 1 - p.life;
+    const [r, g, b] = lerpColor(C1, C2, p.tone);
+    ctx.strokeStyle = `rgba(${r},${g},${b},${p.life * 0.7})`;
+    ctx.lineWidth   = 2 * p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * (1 + e * 0.9), 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + p.tone * 6;
+      const d = p.r * (1 + e * 1.6);
+      ctx.fillStyle = `rgba(255,255,255,${p.life * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 1.6 * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
 
-  const now  = new Date();
-  const tStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const fs   = Math.min(W * 0.15, H * 0.21, 148);
+  // Time
+  const tStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const fs   = Math.min(W * 0.15, H * 0.21, 148) * (cfg.settings.bubble.needle / 70);
   ctx.font         = `300 ${fs}px 'JetBrains Mono', monospace`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor  = C2; ctx.shadowBlur = 45;
-  ctx.fillStyle    = `rgba(${c2r},${c2g},${c2b},0.5)`;
-  ctx.fillText(tStr, W/2, H/2);
+  ctx.fillStyle    = `rgba(${c2r},${c2g},${c2b},0.45)`;
+  ctx.fillText(tStr, W / 2, H / 2);
   ctx.shadowBlur   = 0;
   ctx.fillStyle    = 'rgba(255,255,255,0.94)';
-  ctx.fillText(tStr, W/2, H/2);
+  ctx.fillText(tStr, W / 2, H / 2);
 }
 
-export default { init, tick };
+function destroy() { pops = []; }
+
+export default { init, tick, destroy };

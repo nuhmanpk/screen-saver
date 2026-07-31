@@ -1,90 +1,111 @@
 import { ctx, W, H } from '../core/canvas.js';
 import { cfg, C1, C2 } from '../core/cfg.js';
-import { pad, hexToRgb, fillBg } from '../core/helpers.js';
+import { pad, hexToRgb, lerpColor, fillBg } from '../core/helpers.js';
 import { setRafId } from '../core/raf.js';
 
-const ROWS = 7, CHAR_W = 5, GAP = 1;
-const FONT = {
-  '0': [0b01110,0b10001,0b10001,0b10001,0b10001,0b10001,0b01110],
-  '1': [0b00100,0b01100,0b00100,0b00100,0b00100,0b00100,0b01110],
-  '2': [0b01110,0b10001,0b00001,0b00010,0b00100,0b01000,0b11111],
-  '3': [0b01110,0b10001,0b00001,0b00110,0b00001,0b10001,0b01110],
-  '4': [0b00010,0b00110,0b01010,0b10010,0b11111,0b00010,0b00010],
-  '5': [0b11111,0b10000,0b11110,0b00001,0b00001,0b10001,0b01110],
-  '6': [0b00110,0b01000,0b10000,0b11110,0b10001,0b10001,0b01110],
-  '7': [0b11111,0b00001,0b00010,0b00100,0b01000,0b01000,0b01000],
-  '8': [0b01110,0b10001,0b10001,0b01110,0b10001,0b10001,0b01110],
-  '9': [0b01110,0b10001,0b10001,0b01111,0b00001,0b00010,0b01100],
-  ':': [0b00000,0b00100,0b00100,0b00000,0b00100,0b00100,0b00000],
-};
+// Honeycomb: the whole screen is a comb, the time burns through it, ripples wash across.
+let cells = [], t = 0, lastStr = '', mask = null, mCtx = null, MW = 260, MH = 0;
 
-function hexDot(cx, cy, r) {
+function buildMask(str) {
+  if (!mask) { mask = document.createElement('canvas'); mCtx = mask.getContext('2d'); }
+  MH = Math.max(1, Math.round(MW * H / W));
+  if (mask.width !== MW || mask.height !== MH) { mask.width = MW; mask.height = MH; }
+  mCtx.clearRect(0, 0, MW, MH);
+  const fs = Math.min(MW * 0.185, MH * 0.3);
+  mCtx.font         = `700 ${fs}px 'JetBrains Mono', monospace`;
+  mCtx.textAlign    = 'center';
+  mCtx.textBaseline = 'middle';
+  mCtx.fillStyle    = '#fff';
+  mCtx.fillText(str, MW / 2, MH / 2);
+  const d = mCtx.getImageData(0, 0, MW, MH).data;
+  cells.forEach(c => {
+    const mx = Math.round(c.x / W * MW), my = Math.round(c.y / H * MH);
+    const i  = (Math.min(MH - 1, my) * MW + Math.min(MW - 1, mx)) * 4 + 3;
+    const on = d[i] > 100;
+    if (on && !c.on) c.ignite = 1;                // fresh cell flares as it lights
+    c.on = on;
+  });
+}
+
+function init() {
+  t = 0; lastStr = '';
+  const R  = Math.max(14, Math.min(W, H) / 22);   // hex circumradius
+  const dx = R * 1.5, dy = R * Math.sqrt(3);
+  cells = [];
+  for (let col = 0; col * dx < W + R; col++) {
+    for (let row = 0; row * dy < H + R; row++) {
+      const x = col * dx;
+      const y = row * dy + (col % 2 ? dy / 2 : 0);
+      cells.push({
+        x, y, r: R * 0.86, on: false, ignite: 0,
+        d: Math.hypot(x - W / 2, y - H / 2) / Math.hypot(W / 2, H / 2),
+      });
+    }
+  }
+}
+
+function hexPath(x, y, r) {
   for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 3) * i - Math.PI / 6;
-    const hx = cx + r * Math.cos(a), hy = cy + r * Math.sin(a);
-    if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+    const a = (Math.PI / 3) * i;
+    const hx = x + r * Math.cos(a), hy = y + r * Math.sin(a);
+    i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy);
   }
   ctx.closePath();
 }
 
-function init() {}
-
 function tick() {
   setRafId(requestAnimationFrame(tick));
   fillBg('hex');
+  t += 0.014 * (cfg.speed / 5);
 
-  const now   = new Date();
-  const chars = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`.split('');
-
-  const totalCols = chars.length * (CHAR_W + GAP) - GAP;
-  const cell      = Math.min(W * 0.88 / totalCols, H * 0.74 / ROWS);
-  const hexR      = cell * 0.40;
-  const ox        = (W - totalCols * cell) / 2;
-  const oy        = (H - ROWS * cell) / 2;
+  const now  = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  const str = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  if (str !== lastStr) { lastStr = str; buildMask(str); }
 
   const [c1r, c1g, c1b] = hexToRgb(C1);
   const [c2r, c2g, c2b] = hexToRgb(C2);
+  const amp = cfg.intensity / 5;
 
-  // Pass 1: inactive dots
-  ctx.beginPath();
-  let colOff = 0;
-  chars.forEach(ch => {
-    const bm = FONT[ch] || FONT['0'];
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < CHAR_W; col++) {
-        if ((bm[row] >> (CHAR_W - 1 - col)) & 1) continue;
-        hexDot(ox + (colOff + col) * cell + cell / 2, oy + row * cell + cell / 2, hexR);
-      }
-    }
-    colOff += CHAR_W + GAP;
-  });
-  ctx.fillStyle = `rgba(${c1r},${c1g},${c1b},0.07)`;
-  ctx.fill();
-
-  // Pass 2: active dots per char with gradient + glow
-  colOff = 0;
-  chars.forEach((ch, ci) => {
-    const frac = chars.length > 1 ? ci / (chars.length - 1) : 0;
-    const cr   = Math.round(c1r + (c2r - c1r) * frac);
-    const cg   = Math.round(c1g + (c2g - c1g) * frac);
-    const cb   = Math.round(c1b + (c2b - c1b) * frac);
-
-    ctx.shadowColor = `rgb(${cr},${cg},${cb})`;
-    ctx.shadowBlur  = cell * 0.6;
-    ctx.fillStyle   = `rgb(${cr},${cg},${cb})`;
+  // Dormant comb, with a ripple travelling outward from the centre
+  ctx.lineWidth = 1;
+  cells.forEach(c => {
+    if (c.on) return;
+    const wave = 0.5 + 0.5 * Math.sin(c.d * 14 - t * 3);
+    const a    = (0.035 + wave * 0.075 * amp);
+    ctx.strokeStyle = `rgba(${c1r},${c1g},${c1b},${a})`;
     ctx.beginPath();
-
-    const bm = FONT[ch] || FONT['0'];
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < CHAR_W; col++) {
-        if (!((bm[row] >> (CHAR_W - 1 - col)) & 1)) continue;
-        hexDot(ox + (colOff + col) * cell + cell / 2, oy + row * cell + cell / 2, hexR);
-      }
-    }
-    ctx.fill();
-    colOff += CHAR_W + GAP;
+    hexPath(c.x, c.y, c.r * (0.9 + wave * 0.06));
+    ctx.stroke();
   });
-  ctx.shadowBlur = 0;
+
+  // Lit cells forming the digits
+  cells.forEach(c => {
+    if (!c.on) return;
+    const [r, g, b] = lerpColor(C1, C2, Math.min(1, c.x / W));
+    const flare = c.ignite;
+    if (c.ignite > 0) c.ignite = Math.max(0, c.ignite - 0.05);
+    const pulse = 0.5 + 0.5 * Math.sin(c.d * 10 - t * 4);
+
+    ctx.beginPath();
+    hexPath(c.x, c.y, c.r * (0.94 + flare * 0.12));
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.3 + pulse * 0.2 + flare * 0.5})`;
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur  = 12 + flare * 26;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${0.35 + flare * 0.6})`;
+    ctx.lineWidth   = 1.2;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+  });
+
+  // Seconds trickle along the bottom edge of the comb
+  const sFrac = (s + now.getMilliseconds() / 1000) / 60;
+  ctx.strokeStyle = `rgba(${c2r},${c2g},${c2b},0.45)`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, H - 3); ctx.lineTo(W * sFrac, H - 3);
+  ctx.stroke();
 }
 
 export default { init, tick };

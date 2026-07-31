@@ -1,104 +1,161 @@
 import { ctx, W, H } from '../core/canvas.js';
 import { cfg, C1, C2 } from '../core/cfg.js';
-import { pad, hexToRgb, lerpColor, fillBg } from '../core/helpers.js';
+import { pad, hexToRgb, lerpColor, rand, fillBg } from '../core/helpers.js';
 import { setRafId } from '../core/raf.js';
 
-let t = 0;
+// Night sea: layered swell, a moon that tracks the hour, time mirrored in the water.
+let t = 0, stars = [], glints = [], txt = null, tCtx = null;
 
-function init() {}
+function init() {
+  t = 0;
+  stars = Array.from({ length: 110 }, () => ({
+    x: rand(0, W), y: rand(0, H * 0.55), r: rand(0.3, 1.3), ph: rand(0, 6.3),
+  }));
+  glints = Array.from({ length: 60 }, () => ({
+    x: rand(0, W), o: rand(0, 1), w: rand(6, 40), ph: rand(0, 6.3),
+  }));
+  if (!txt) { txt = document.createElement('canvas'); tCtx = txt.getContext('2d'); }
+}
+
+// Sum-of-sines surface height at x for a given layer
+function surface(x, level, amp, k, sp, ph) {
+  return level
+    + Math.sin(x * k + t * sp + ph) * amp
+    + Math.sin(x * k * 2.3 - t * sp * 1.4 + ph) * amp * 0.35
+    + Math.sin(x * k * 0.4 + t * sp * 0.6) * amp * 0.6;
+}
 
 function tick() {
   setRafId(requestAnimationFrame(tick));
-  t += 0.005 * (cfg.speed / 5);
+  t += 0.012 * (cfg.speed / 5);
   fillBg('waves');
 
-  const cx = W / 2, cy = H / 2;
-  const scale = cfg.settings.waves.needle / 70;
-  const rMax  = Math.min(W, H) * 0.35 * scale;
-
-  for (let i = 0; i < 3; i++) {
-    const frac     = i / 2;
-    const alpha    = 0.03 + (1 - frac) * 0.04;
-    const rgbParts = lerpColor(C1, C2, frac);
-    const amp      = (cfg.intensity / 10) * H * 0.06;
-    ctx.beginPath();
-    ctx.moveTo(0, H);
-    for (let x = 0; x <= W; x += 10) {
-      const y = H * (0.35 + frac * 0.3) + Math.sin(x * 0.003 + t + i * 2) * amp;
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(W, H);
-    ctx.closePath();
-    ctx.fillStyle = `rgba(${rgbParts.join(',')}, ${alpha})`;
-    ctx.fill();
-  }
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(cx, cy, rMax, 0, Math.PI * 2);
-  ctx.stroke();
-
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-    const x1 = cx + Math.cos(angle) * (rMax - 12);
-    const y1 = cy + Math.sin(angle) * (rMax - 12);
-    const x2 = cx + Math.cos(angle) * rMax;
-    const y2 = cy + Math.sin(angle) * rMax;
-    ctx.strokeStyle = i % 3 === 0
-      ? `rgba(${hexToRgb(C2).join(',')},0.35)`
-      : 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = i % 3 === 0 ? 3 : 1;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-
   const now = new Date();
-  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
-  const secAngle  = ((s + ms / 1000) / 60) * Math.PI * 2 - Math.PI / 2;
-  const minAngle  = ((m + s / 60) / 60) * Math.PI * 2 - Math.PI / 2;
-  const hourAngle = (((h % 12) + m / 60) / 12) * Math.PI * 2 - Math.PI / 2;
+  const h = now.getHours(), m = now.getMinutes();
+  const s = now.getSeconds(), ms = now.getMilliseconds();
 
-  function drawWavyHand(angle, length, width, color, freq, amp, phase) {
+  const [c1r, c1g, c1b] = hexToRgb(C1);
+  const [c2r, c2g, c2b] = hexToRgb(C2);
+
+  // Sky wash
+  const sky = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+  sky.addColorStop(0, `rgba(${c1r},${c1g},${c1b},0.16)`);
+  sky.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H * 0.7);
+
+  stars.forEach(st => {
+    const a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2 + st.ph));
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
     ctx.beginPath();
-    for (let i = 0; i <= 40; i++) {
-      const frac = i / 40;
-      const d    = frac * length;
-      const bx   = cx + Math.cos(angle) * d;
-      const by   = cy + Math.sin(angle) * d;
-      const wo   = Math.sin(d * freq - phase) * amp * (1 - frac * 0.3);
-      const wx   = bx - Math.sin(angle) * wo;
-      const wy   = by + Math.cos(angle) * wo;
-      if (i === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
-    }
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = width;
-    ctx.lineCap     = 'round';
-    ctx.stroke();
-    const hx = cx + Math.cos(angle) * length;
-    const hy = cy + Math.sin(angle) * length;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(hx, hy, width * 1.5, 0, Math.PI * 2);
+    ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
     ctx.fill();
-  }
+  });
 
-  const handAmp = (cfg.intensity / 10) * 14;
-  drawWavyHand(hourAngle, rMax * 0.55, 6,   C1,    0.04, handAmp * 0.7, t * 1.8);
-  drawWavyHand(minAngle,  rMax * 0.78, 4,   C2,    0.03, handAmp,       t * 2.2);
-  drawWavyHand(secAngle,  rMax * 0.9,  1.5, '#fff', 0.02, handAmp * 1.3, t * 3.5);
-
-  ctx.fillStyle = '#fff';
+  // Moon: crosses the sky once every 12 hours, phase set by the minute
+  const hFrac = ((h % 12) + m / 60) / 12;
+  const mx = W * (0.08 + hFrac * 0.84);
+  const my = H * (0.34 - Math.sin(hFrac * Math.PI) * 0.2);
+  const mr = Math.min(W, H) * 0.055;
+  const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr * 5);
+  mg.addColorStop(0, `rgba(${c2r},${c2g},${c2b},0.35)`);
+  mg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = mg;
+  ctx.beginPath(); ctx.arc(mx, my, mr * 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+  // Bite out of the moon = minute phase
+  ctx.fillStyle = cfg.settings.waves.bg;
   ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.arc(mx + mr * (0.4 + (m / 60) * 1.4), my, mr, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle     = 'rgba(255,255,255,0.28)';
-  ctx.font          = '15px JetBrains Mono, monospace';
-  ctx.textAlign     = 'center';
-  ctx.textBaseline  = 'middle';
-  ctx.fillText(`${pad(h)}:${pad(m)}:${pad(s)}`, cx, cy + rMax * 0.3);
+  const level = H * 0.6;
+  const swell = H * 0.035 * (cfg.intensity / 5);
+  const sFrac = (s + ms / 1000) / 60;
+
+  // Time + its reflection, drawn before the front swells so waves overlap it
+  const tStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const fs   = Math.min(W * 0.15, H * 0.2, 150) * (cfg.settings.waves.needle / 70);
+  ctx.font         = `300 ${fs}px 'JetBrains Mono', monospace`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.shadowColor  = C2; ctx.shadowBlur = 30;
+  ctx.fillStyle    = 'rgba(255,255,255,0.94)';
+  ctx.fillText(tStr, W / 2, level - fs * 0.35);
+  ctx.shadowBlur   = 0;
+
+  // Mirrored, ripple-sliced copy on the water
+  const tw = Math.ceil(ctx.measureText(tStr).width) + 40;
+  const th = Math.ceil(fs * 1.2);
+  if (txt.width !== tw || txt.height !== th) { txt.width = tw; txt.height = th; }
+  tCtx.clearRect(0, 0, tw, th);
+  tCtx.font         = `300 ${fs}px 'JetBrains Mono', monospace`;
+  tCtx.textAlign    = 'center';
+  tCtx.textBaseline = 'alphabetic';
+  tCtx.fillStyle    = `rgba(${c2r},${c2g},${c2b},0.85)`;
+  tCtx.fillText(tStr, tw / 2, th * 0.85);
+
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  for (let row = 0; row < th; row += 2) {
+    const dx = Math.sin(row * 0.09 + t * 3) * (3 + row * 0.05);
+    ctx.drawImage(txt, 0, th - row - 2, tw, 2,
+                  W / 2 - tw / 2 + dx, level + row * 0.8, tw, 2);
+  }
+  ctx.restore();
+
+  // Water layers, far to near
+  const LAYERS = 5;
+  for (let i = 0; i < LAYERS; i++) {
+    const f   = i / (LAYERS - 1);
+    const lvl = level + f * H * 0.11;
+    const amp = swell * (0.35 + f * 1.5);
+    const k   = 0.006 - f * 0.0035;
+    const sp  = 1 + f * 1.6;
+    const [r, g, b] = lerpColor(C2, C1, f);
+
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 8) ctx.lineTo(x, surface(x, lvl, amp, k, sp, i * 1.7));
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    const wg = ctx.createLinearGradient(0, lvl - amp, 0, H);
+    wg.addColorStop(0, `rgba(${r},${g},${b},${0.1 + f * 0.16})`);
+    wg.addColorStop(1, `rgba(${r},${g},${b},${0.02 + f * 0.05})`);
+    ctx.fillStyle = wg;
+    ctx.fill();
+
+    // Crest line
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) {
+      const y = surface(x, lvl, amp, k, sp, i * 1.7);
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${r},${g},${b},${0.18 + f * 0.42})`;
+    ctx.lineWidth   = 0.8 + f * 1.4;
+    ctx.stroke();
+  }
+
+  // Moonlight glints riding the nearest crest
+  glints.forEach(gl => {
+    const x = gl.x + Math.sin(t + gl.ph) * 20;
+    const y = surface(x, level + H * 0.11, swell * 1.85, 0.0025, 2.6, 6.8);
+    const a = (0.25 + 0.5 * Math.sin(t * 3 + gl.ph)) * (1 - Math.abs(x - mx) / W);
+    if (a <= 0) return;
+    ctx.strokeStyle = `rgba(255,255,255,${a * 0.5})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - gl.w / 2, y); ctx.lineTo(x + gl.w / 2, y);
+    ctx.stroke();
+  });
+
+  // Tide marker: fills once a minute along the shoreline
+  ctx.strokeStyle = `rgba(${c2r},${c2g},${c2b},0.5)`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, H - 4); ctx.lineTo(W * sFrac, H - 4);
+  ctx.stroke();
 }
 
 export default { init, tick };
